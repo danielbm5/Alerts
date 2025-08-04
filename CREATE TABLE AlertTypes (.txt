@@ -1,0 +1,225 @@
+# ניתוח מבנה בסיס הנתונים - מערכת ההתראות
+
+## סקירה כללית
+המבנה החדש מורכב מ-4 טבלאות בלבד במקום 8-10 טבלאות מורכבות. זה מאפשר גמישות מקסימלית עם מורכבות מינימלית.
+
+---
+
+## 1. AlertTypes - סוגי ההתראות
+
+### מבנה הטבלה:
+```sql
+CREATE TABLE AlertTypes (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    Name NVARCHAR(100) NOT NULL, -- 'PriceUp', 'PriceDown', 'YearHigh', 'YearLow', 'GeneralNews'
+    Description NVARCHAR(500),
+    IsActive BIT DEFAULT 1,
+    CreatedDate DATETIME2 DEFAULT GETDATE(),
+    IsSkeletonAlert BIT DEFAULT 0 -- התראות שלד שאי אפשר לכבות
+);
+```
+
+### מה זה?
+טבלה זו מגדירה את **סוגי ההתראות האפשריים** במערכת. כל התראה חייבת להיות מסוג מוגדר מראש.
+
+### איפה נשתמש?
+1. **בממשק האדמין** - להצגת רשימת סוגי התראות זמינים
+2. **בהגדרת התראות** - כשאנחנו יוצרים התראה חדשה, אנחנו בוחרים מסוגים אלה
+3. **בבדיקת הרשאות** - האם התראה מסוימת היא שלד (לא ניתן לבטל) או רגילה
+
+### דוגמאות נתונים:
+```sql
+INSERT INTO AlertTypes (Name, Description, IsSkeletonAlert) VALUES
+('PriceUp', 'מניה עלתה X%', 0),
+('PriceDown', 'מניה ירדה X%', 0),
+('YearHigh', 'מניה הגיעה לשיא שנתי', 0),
+('YearLow', 'מניה הגיעה לשפל שנתי', 0),
+('GeneralNews', 'חדשות כלליות על מניה', 1); -- התראת שלד
+```
+
+---
+
+## 2. AlertConfigurations - הגדרות התראות
+
+### מבנה הטבלה:
+```sql
+CREATE TABLE AlertConfigurations (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    AlertTypeId INT NOT NULL,
+    StockSymbol NVARCHAR(20) NOT NULL,
+    TargetAudience NVARCHAR(50) NOT NULL, -- 'Holders', 'Watchers', 'ForeignAccess','Vip', 'All'
+    Percentage DECIMAL(5,2) NULL, -- רק להתראות אחוזים
+    IsActive BIT DEFAULT 1,
+    CreatedDate DATETIME2 DEFAULT GETDATE(),
+    CreatedBy NVARCHAR(100),
+    
+    FOREIGN KEY (AlertTypeId) REFERENCES AlertTypes(Id)
+);
+```
+
+### מה זה?
+טבלה זו מגדירה **התראות ספציפיות** - איזה התראה לשלוח, על איזה מניה, למי, ובאיזה תנאים.
+
+### איפה נשתמש?
+1. **בממשק האדמין** - יצירת התראות חדשות
+2. **במערכת הבדיקה** - TriggerChecker קורא את כל ההתראות הפעילות
+3. **בסינון קהל יעד** - לפי TargetAudience אנחנו יודעים למי לשלוח
+
+### דוגמאות נתונים:
+```sql
+-- התראה: גוגל עלתה 5% למחזיקים
+INSERT INTO AlertConfigurations (AlertTypeId, StockSymbol, TargetAudience, Percentage) 
+VALUES (1, 'GOOGL', 'Holders', 5.00);
+
+-- התראה: אפל הגיעה לשיא שנתי לכל העוקבים
+INSERT INTO AlertConfigurations (AlertTypeId, StockSymbol, TargetAudience) 
+VALUES (3, 'AAPL', 'Watchers');
+
+-- התראה: חדשות כלליות על טסלה לכל מי שיש לו גישה לניירות זרים
+INSERT INTO AlertConfigurations (AlertTypeId, StockSymbol, TargetAudience) 
+VALUES (5, 'TSLA', 'ForeignAccess');
+```
+
+---
+
+## 3. UserAlertPreferences - העדפות משתמשים
+
+### מבנה הטבלה:
+```sql
+CREATE TABLE UserAlertPreferences (
+    Id BIGINT PRIMARY KEY IDENTITY(1,1),
+    CardId NVARCHAR(20) NOT NULL,
+    AlertTypeId INT NOT NULL,
+    StockSymbol NVARCHAR(20) NULL, -- NULL = כל המניות
+    IsEnabled BIT DEFAULT 1, -- false = blacklisted
+    UpdatedDate DATETIME2 DEFAULT GETDATE(),
+    
+    FOREIGN KEY (AlertTypeId) REFERENCES AlertTypes(Id)
+);
+```
+
+### מה זה?
+טבלה זו מגדירה **העדפות אישיות** של כל לקוח - איזה התראות הוא רוצה לקבל ואיזה לא.
+
+### איפה נשתמש?
+1. **בסינון התראות** - לפני שליחת התראה, בודקים האם הלקוח רוצה לקבל אותה
+2. **בממשק לקוח** - לקוח יכול לבטל/להפעיל התראות
+3. **בבדיקת שלד** - אם IsSkeletonAlert = true, מתעלמים מהעדפות
+
+### דוגמאות נתונים:
+```sql
+-- לקוח 12345 לא רוצה התראות על עליות של גוגל
+INSERT INTO UserAlertPreferences (CardId, AlertTypeId, StockSymbol, IsEnabled) 
+VALUES ('12345', 1, 'GOOGL', 0);
+
+-- לקוח 67890 לא רוצה שום התראות על עליות (כל המניות)
+INSERT INTO UserAlertPreferences (CardId, AlertTypeId, StockSymbol, IsEnabled) 
+VALUES ('67890', 1, NULL, 0);
+
+-- לקוח 11111 רוצה שוב התראות על עליות של אפל (מבטל blacklist)
+INSERT INTO UserAlertPreferences (CardId, AlertTypeId, StockSymbol, IsEnabled) 
+VALUES ('11111', 1, 'AAPL', 1);
+```
+
+---
+
+## 4. AlertHistory - היסטוריית התראות
+
+### מבנה הטבלה:
+```sql
+CREATE TABLE AlertHistory (
+    Id BIGINT PRIMARY KEY IDENTITY(1,1),
+    AlertConfigurationId INT NOT NULL,
+    CardId NVARCHAR(20) NOT NULL,
+    StockSymbol NVARCHAR(20) NOT NULL,
+    AlertTypeId INT NOT NULL,
+    Message NVARCHAR(1000) NOT NULL,
+    SentDate DATETIME2 DEFAULT GETDATE(),
+    Price DECIMAL(10,4) NULL,
+    PriceChange DECIMAL(5,2) NULL,
+    
+    FOREIGN KEY (AlertConfigurationId) REFERENCES AlertConfigurations(Id),
+    FOREIGN KEY (AlertTypeId) REFERENCES AlertTypes(Id)
+);
+```
+
+### מה זה?
+טבלה זו **מתעדת כל התראה שנשלחה** - לצורך תיעוד, דיווחים וניתוח.
+
+### איפה נשתמש?
+1. **בדיווחים** - כמה התראות נשלחו היום/השבוע/החודש
+2. **בבדיקת כפילויות** - למנוע שליחת אותה התראה פעמיים
+3. **בניתוח ביצועים** - איזה התראות הכי פופולריות
+4. **בתמיכה** - לקוח טוען שלא קיבל התראה, בודקים בהיסטוריה
+
+### דוגמאות נתונים:
+```sql
+-- התראה שנשלחה: גוגל עלתה 5.2% למחזיק 12345
+INSERT INTO AlertHistory (AlertConfigurationId, CardId, StockSymbol, AlertTypeId, Message, Price, PriceChange) 
+VALUES (1, '12345', 'GOOGL', 1, 'גוגל עלתה 5.2% היום!', 150.25, 5.20);
+
+-- התראה: אפל הגיעה לשיא שנתי למחזיק 67890
+INSERT INTO AlertHistory (AlertConfigurationId, CardId, StockSymbol, AlertTypeId, Message, Price) 
+VALUES (2, '67890', 'AAPL', 3, 'אפל הגיעה לשיא שנתי חדש!', 175.50);
+```
+
+---
+
+## זרימת העבודה המלאה
+
+### 1. יצירת התראה חדשה (אדמין):
+```sql
+-- 1. בוחרים סוג התראה מ-AlertTypes
+-- 2. יוצרים הגדרה ב-AlertConfigurations
+INSERT INTO AlertConfigurations (AlertTypeId, StockSymbol, TargetAudience, Percentage) 
+VALUES (1, 'GOOGL', 'Holders', 3.00);
+```
+
+### 2. בדיקת התראות (TriggerChecker):
+```sql
+-- 1. קוראים את כל ההתראות הפעילות
+SELECT * FROM AlertConfigurations WHERE IsActive = 1;
+
+-- 2. לכל התראה, בודקים מי הקהל היעד
+-- 3. לכל לקוח בקהל, בודקים העדפות
+SELECT IsEnabled FROM UserAlertPreferences 
+WHERE CardId = '12345' AND AlertTypeId = 1 AND (StockSymbol = 'GOOGL' OR StockSymbol IS NULL);
+
+-- 4. אם IsEnabled = 1, שולחים התראה
+```
+
+### 3. שליחת התראה (PushNotifier):
+```sql
+-- 1. שולחים התראה ללקוח
+-- 2. מתעדים בהיסטוריה
+INSERT INTO AlertHistory (AlertConfigurationId, CardId, StockSymbol, AlertTypeId, Message, Price, PriceChange) 
+VALUES (1, '12345', 'GOOGL', 1, 'גוגל עלתה 3.1%!', 148.75, 3.10);
+```
+
+
+דוגמאות:
+-- =====================================================
+-- דוגמאות שימוש מעשיות במבנה בסיס הנתונים
+-- =====================================================
+
+-- 1. הכנסת נתונים ראשוניים
+-- =====================================================
+
+-- הכנסת סוגי התראות
+INSERT INTO AlertTypes (Name, Description, IsSkeletonAlert) VALUES
+('PriceUp', 'מניה עלתה X%', 0),
+('PriceDown', 'מניה ירדה X%', 0),
+('YearHigh', 'מניה הגיעה לשיא שנתי', 0),
+('YearLow', 'מניה הגיעה לשפל שנתי', 0),
+('GeneralNews', 'חדשות כלליות על מניה', 1),
+('DailyHigh', 'מניה הגיעה לשיא יומי', 0),
+('DailyLow', 'מניה הגיעה לשפל יומי', 0);
+
+-- הכנסת הגדרות התראות
+INSERT INTO AlertConfigurations (AlertTypeId, StockSymbol, TargetAudience, Percentage, CreatedBy) VALUES
+(1, 'GOOGL', 'Holders', 3.00, 'admin'),
+(1, 'GOOGL', 'Watchers', 5.00, 'admin'),
+(2, 'AAPL', 'Holders', 2.50, 'admin'),
+(3, 'TSLA', 'All', NULL, 'admin'),
+(4, 'MSFT', 'ForeignAccess', NULL, 'admin'),
+(5, 'NVDA', 'Vip', NULL, 'admin');
