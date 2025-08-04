@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>איפיון מערכת התראות - שרת מידעים (מפורט)</title>
+<style>
+  :root { font-family: system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif; }
+  body { max-width: 1000px; margin: auto; padding: 30px; line-height:1.5; background:#f9f9fc; color:#1f2937; }
+  h1 { font-size:2.2em; margin-bottom:0.2em; }
+  h2 { border-bottom:2px solid #e2e8f0; padding-bottom:4px; color:#0f4c81; }
+  h3 { margin-top:1em; color:#1d4760; }
+  p { margin:0.6em 0; }
+  code { background:#eef4fa; padding:2px 4px; border-radius:3px; font-family: monospace; }
+  pre { background:#ffffff; border:1px solid #d1d9e6; padding:12px; overflow-x:auto; border-radius:6px; font-size:0.9em; }
+  .badge { display:inline-block; background:#d1e8ff; padding:3px 8px; border-radius:12px; font-size:.75em; margin-right:4px; }
+  .box { background:#ffffff; border:1px solid #cbd5e1; padding:16px; border-radius:8px; margin:16px 0; }
+  .flex { display:flex; gap:16px; flex-wrap:wrap; }
+  .column { flex:1; min-width:250px; }
+  table { border-collapse:collapse; width:100%; margin:8px 0; }
+  th, td { border:1px solid #ccd7ea; padding:8px; text-align:right; }
+  .diagram { text-align:center; margin:20px 0; }
+  .small { font-size:.85em; color:#555; }
+  .code-title { background:#f0f7ff; padding:4px 8px; border-left:4px solid #0f4c81; margin-bottom:4px; border-radius:3px; display:inline-block; }
+</style>
+</head>
+<body>
+<h1>איפיון טכני ועסקי של מערכת התראות - שרת מידעים</h1>
+<p class="small">גרסה מוכנה לפיתוח: כל ההגדרות, זרימות אירועים, מבני נתונים, סקריפטים, ותרשים ארכיטקטורה. מטרה: למפתחים יהיה ברור בדיוק מה לבנות ולאן המידע זורם.</p>
+
+<section>
+  <h2>1. סקירה כללית</h2>
+  <p>המערכת נועדה לשלוח התראות ללקוחות אפליקציית מסחר על סמך החזקות ומעוקבים, יחד עם אירועי שוק (עליות/ירידות אחוזיות, שיא/שפל שנתי, חדשות). הנתונים הסטטיים (בדגש על מחירי סגירה היסטוריים, שיא/שפל ועוד) נמצאים אצל <strong>שרת מידעים</strong>. הנתונים בזמן אמת (מחזיקים, עוקבים, מחירי רייאל טיים) מגיעים מ-<strong>RTS/ATLAS/K300</strong> שמנהל הדר.</p>
+  <p>הרכיבים רצים על Kubernetes, משתמשים ב-Redis Cluster ל-cache ו-state קצר מועד, SQL Server לתצורה, העדפות ותיעוד, ו-RabbitMQ להזנת אירועים בין רכיבים. יש הבדלה ברורה בין <em>התראות שלד</em> (Skeleton Alerts) שלא ניתן לבטל לבין התראות רגילות שמשתמש יכול לכבות ברמת הכרטיס.</p>
+</section>
+
+<section>
+  <h2>2. רכיבי המערכת ותיאור פונקציונלי</h2>
+
+  <div class="box">
+    <h3>StocksFetcher</h3>
+    <p>מקבל מ-RTS/ATLAS/K300 את רשימות המחזיקים והעוקבים לכל נייר (לפי כרטיסים). עושה Cache ב-Redis ומפיץ לעיבוד דרך RabbitMQ.</p>
+    <p><strong>פעולות:</strong></p>
+    <ul>
+      <li>מפיק רשימות: מחזיקים, עוקבים, קהלים מיוחדים (ForeignAccess, Vip וכו').</li>
+      <li>שומר ב-Redis: מבנה מפתח כמו <code>stock:holders:GOOGL</code>, <code>stock:watchers:GOOGL</code>, <code>audience:Holders:GOOGL</code> לפי צורך.</li>
+      <li>מדווח ל-RabbitMQ: אירוע עדכון קהל (exchange: <code>stocks.update</code>, routing key: <code>holders.GOOGL</code> / <code>watchers.GOOGL</code>).</li>
+    </ul>
+  </div>
+
+  <div class="box">
+    <h3>PriceStreamer</h3>
+    <p>מוחזקת חיבור WebSocket או feed למחירי ריאל-טיים. לכל עדכון מחיר רלוונטי יוצר אירוע ומשלח אותו ל-RabbitMQ.</p>
+    <p><strong>פעולות:</strong></p>
+    <ul>
+      <li>מקבל מחיר נוכחי עבור מניה (symbol, price, changePercent, timestamp).</li>
+      <li>שולח ל-RabbitMQ: exchange: <code>prices.stream</code>, routing key: <code>price.GOOGL</code>.</li>
+      <li>יכול לעדכן זמנית ב-Redis את <code>stock:price:SYMBOL</code> גם כאן או שזו האחריות של DataCalculator.</li>
+    </ul>
+  </div>
+
+  <div class="box">
+    <h3>DataCalculator</h3>
+    <p>לוקח את המחיר בזמן אמת ומשווה אותו לנתונים הסטטיים ב-Redis (שיא/שפל שנתי, גבוה/נמוך יומי וכו'). אם נוצר אירוע כמו עלייה מעל X% או שיא שנתי, מעדכן סטייט ב-Redis ומסמן שיש טריגר אפשרי.</p>
+    <p><strong>פעולות:</strong></p>
+    <ul>
+      <li>קורא מה-Redis: <code>stock:static:SYMBOL</code> ו<code>stock:price:SYMBOL</code>.</li>
+      <li>מחיש חישובים עסקיים (לדוגמה: שינוי יחסית ל-close האחרון, השוואת שיא/שפל, אחוז עלייה/ירידה).</li>
+      <li>מעביר את התוצאה חזרה ל-Redis (למשל: עדכון של flag או snapshot) ומאפשר ל-TriggerChecker למצוא התאמה.</li>
+      <li>יכול לפרסם אירוע ביניים ל-RabbitMQ אם נדרש (למשל <code>data.calculated.GOOGL</code>).</li>
+    </ul>
+  </div>
+
+  <div class="box">
+    <h3>TriggerChecker</h3>
+    <p>הרכיב הקריטי שמריץ את הלוגיקה העסקית, מחבר בין הנתונים לבין ההגדרות ב-SQL ומחליט האם לשלוח התראה.</p>
+    <p><strong>זרימה:</strong></p>
+    <ol>
+      <li>קורא מ-Redis את מחזיקים/עוקבים וקהל יעד (למשל <code>audience:Holders:GOOGL</code>).</li>
+      <li>קורא מה-SQL את ה-<code>AlertConfigurations</code> הפעילות ומבין אילו כללים רלוונטיים לכל מניה.</li>
+      <li>בודק העדפות משתמשים ב-<code>UserAlertPreferences</code>, ומשמט התראות רגילות כשהמשתמש ביטל (למעט שלדים).</li>
+      <li>בודק אם כבר נשלחה התראה דומה (ב־Redis עם מפתחות מסוג <code>alert:sent:*</code> ו-TTL מתאים).</li>
+      <li>אם כל התנאים מתקיימים – מפרסם משימה חדשה ל-RabbitMQ עבור PushService: exchange: <code>alerts.dispatch</code>, routing key: <code>alert.GOOGL.Holders</code>.</li>
+    </ol>
+  </div>
+
+  <div class="box">
+    <h3>PushService</h3>
+    <p>מקבל משימות לשליחת התראות ומבצע את הפושים דרך שרת הפושים של החברה.</p>
+    <p><strong>פעולות:</strong></p>
+    <ul>
+      <li>מוציא טוקן מהטבלה <code>USER_DEVICES</code> לפי <code>CardId</code>.</li>
+      <li>שולח פוש בפורמט הנדרש.</li>
+      <li>מתעד את השליחה ב-SQL (לטבלה <code>AlertHistory</code>) וב-Redis (למניעת כפילויות) עם מפתח כמו <code>alert:sent:daily:GOOGL:PriceUp:123456</code>.</li>
+    </ul>
+  </div>
+
+  <div class="box">
+    <h3>UI Admin Panel</h3>
+    <p>ממשק לניהול שלדים, סוגי התראות, יצירת AlertConfigurations והתראות ידניות.</p>
+    <p><strong>פונקציות:</strong></p>
+    <ul>
+      <li>הצגת כל סוגי ההתראות (כולל האם הם Skeleton).</li>
+      <li>יצירה/עריכה/דיאקטיבציה של AlertConfigurations.</li>
+      <li>שליחת התראות שלד ידנית לקהלים (לפי מניה ושלד).</li>
+      <li>הצגת סטאטוס של שליחות אחרונות ותגובות היסטוריות.</li>
+    </ul>
+  </div>
+
+</section>
+
+<section>
+  <h2>3. מבני מסרים ב-RabbitMQ</h2>
+  <p>המערכת משתמשת ב-Exchange מבוסס נושאים (topic) כדי להפיץ אירועים בין רכיבים.</p>
+
+  <div class="box">
+    <h3>Exchange ו-routing keys</h3>
+    <table>
+      <thead>
+        <tr><th>Exchange</th><th>Purpose</th><th>Routing Key Pattern</th><th>Example</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>stocks.update</code></td>
+          <td>עדכוני מחזיקים/עוקבים</td>
+          <td><code>holders.{SYMBOL}</code> / <code>watchers.{SYMBOL}</code></td>
+          <td><code>holders.GOOGL</code></td>
+        </tr>
+        <tr>
+          <td><code>prices.stream</code></td>
+          <td>עדכוני מחיר בזמן אמת</td>
+          <td><code>price.{SYMBOL}</code></td>
+          <td><code>price.GOOGL</code></td>
+        </tr>
+        <tr>
+          <td><code>data.calculated</code></td>
+          <td>תוצאות חישובים של DataCalculator</td>
+          <td><code>calculated.{SYMBOL}</code></td>
+          <td><code>calculated.GOOGL</code></td>
+        </tr>
+        <tr>
+          <td><code>alerts.dispatch</code></td>
+          <td>התראות שאמורות להישלח בפועל</td>
+          <td><code>alert.{SYMBOL}.{Audience}</code></td>
+          <td><code>alert.GOOGL.Holders</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p><strong>דוגמת זרימה:</strong> <br>PriceStreamer מפרסם <code>price.GOOGL</code> → DataCalculator מעבד ומפרסם <code>calculated.GOOGL</code> → TriggerChecker מחליט לשלוח ומפרסם <code>alert.GOOGL.Holders</code> → PushService שואב פוש טוקן ושולח.</p>
+  </div>
+</section>
+
+<section>
+  <h2>4. מבנה Redis וסטייט</h2>
+  <p>Redis משמש כ-cache ומהירות סינון; קלאסטר עם TTL מנוהל למניעת כפילויות ולשמירה זמנית.</p>
+  <div class="box">
+    <h3>Key patterns</h3>
+    <pre><code>
+# נתונים סטטיים (מתעדכן יומית)
+stock:static:GOOGL -> { lastClose, yearHigh, yearLow, dailyOpen, dailyHigh, dailyLow, lastUpdated }
+
+# מחזיקים / עוקבים
+stock:holders:GOOGL -> ["123456","234567"]
+stock:watchers:GOOGL -> ["123456","789012"]
+
+# קהלים מוכנים מראש לפי פילטר
+audience:Holders:GOOGL -> ["123456","234567"]
+audience:Watchers:GOOGL -> ["123456","789012"]
+audience:ForeignAccess:GOOGL -> ["123456","234567"]
+
+# מחירי זמן אמת
+stock:price:GOOGL -> { price, change, changePercent, timestamp }
+
+# מעקב שליחת התראות (למנוע שכפולים) - עם TTL
+alert:sent:daily:GOOGL:PriceUp:123456 -> "2025-01-15"
+alert:sent:weekly:GOOGL:YearHigh:123456 -> "2025-W03"
+
+# תיעוד זמני לשליחה בפועל
+alertsent:alerttype:GOOGL:123456 -> true  (לדוגמה)
+    </code></pre>
+    <p><strong>כללים:</strong></p>
+    <ul>
+      <li>התראות שלד מתעלמות מהרשומות ב-UserAlertPreferences.</li>
+      <li>TTL מותאם לפי תדירות: יומית למסלולי אחוזים, שבועית לשיא שנתי וכו'.</li>
+      <li>שימור snapshot קצר של סטייט כדי לאפשר retry idempotent.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>5. סכמות SQL ונתוני טסט</h2>
+  <p>יצירת טבלאות והכנסת נתונים ראשוניים:</p>
+  <div class="box">
+    <div class="code-title">יצירת טבלאות</div>
+    <pre><code>
+CREATE TABLE AlertTypes (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    Name NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(500),
+    IsActive BIT DEFAULT 1,
+    CreatedDate DATETIME2 DEFAULT GETDATE(),
+    IsSkeletonAlert BIT DEFAULT 0
+);
+
+CREATE TABLE AlertConfigurations (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    AlertTypeId INT NOT NULL,
+    StockSymbol NVARCHAR(20) NOT NULL,
+    TargetAudience NVARCHAR(50) NOT NULL,
+    Percentage DECIMAL(5,2) NULL,
+    IsActive BIT DEFAULT 1,
+    CreatedDate DATETIME2 DEFAULT GETDATE(),
+    CreatedBy NVARCHAR(100),
+    FOREIGN KEY (AlertTypeId) REFERENCES AlertTypes(Id)
+);
+
+CREATE TABLE UserAlertPreferences (
+    Id BIGINT PRIMARY KEY IDENTITY(1,1),
+    CardId NVARCHAR(20) NOT NULL,
+    AlertTypeId INT NOT NULL,
+    StockSymbol NVARCHAR(20) NULL,
+    IsEnabled BIT DEFAULT 1,
+    UpdatedDate DATETIME2 DEFAULT GETDATE(),
+    FOREIGN KEY (AlertTypeId) REFERENCES AlertTypes(Id)
+);
+
+CREATE TABLE AlertHistory (
+    Id BIGINT PRIMARY KEY IDENTITY(1,1),
+    AlertConfigurationId INT NOT NULL,
+    CardId NVARCHAR(20) NOT NULL,
+    StockSymbol NVARCHAR(20) NOT NULL,
+    AlertTypeId INT NOT NULL,
+    Message NVARCHAR(1000) NOT NULL,
+    SentDate DATETIME2 DEFAULT GETDATE(),
+    Price DECIMAL(10,4) NULL,
+    PriceChange DECIMAL(5,2) NULL,
+    FOREIGN KEY (AlertConfigurationId) REFERENCES AlertConfigurations(Id),
+    FOREIGN KEY (AlertTypeId) REFERENCES AlertTypes(Id)
+);
+
+CREATE TABLE USER_DEVICES (
+    CardId NVARCHAR(20) NOT NULL,
+    PushToken NVARCHAR(500) NOT NULL,
+    DeviceType NVARCHAR(50),
+    PRIMARY KEY (CardId, PushToken)
+);
+    </code></pre>
+  </div>
+  <div class="box">
+    <div class="code-title">הכנסת נתוני טסט</div>
+    <pre><code>
+INSERT INTO AlertTypes (Name, Description, IsSkeletonAlert) VALUES
+('PriceUp', 'מניה עלתה X%', 0),
+('PriceDown', 'מניה ירדה X%', 0),
+('YearHigh', 'מניה הגיעה לשיא שנתי', 0),
+('YearLow', 'מניה הגיעה לשפל שנתי', 0),
+('GeneralNews', 'חדשות כלליות על מניה', 1),
+('DailyHigh', 'מניה הגיעה לשיא יומי', 0),
+('DailyLow', 'מניה הגיעה לשפל יומי', 0);
+
+INSERT INTO AlertConfigurations (AlertTypeId, StockSymbol, TargetAudience, Percentage, CreatedBy) VALUES
+(1, 'GOOGL', 'Holders', 3.00, 'admin'),
+(1, 'GOOGL', 'Watchers', 5.00, 'admin'),
+(2, 'AAPL', 'Holders', 2.50, 'admin'),
+(3, 'TSLA', 'All', NULL, 'admin'),
+(4, 'MSFT', 'ForeignAccess', NULL, 'admin'),
+(5, 'NVDA', 'Vip', NULL, 'admin');
+
+INSERT INTO UserAlertPreferences (CardId, AlertTypeId, StockSymbol, IsEnabled) VALUES
+('12345', 1, 'GOOGL', 0),
+('67890', 1, NULL, 0),
+('11111', 1, 'AAPL', 1);
+
+INSERT INTO AlertHistory (AlertConfigurationId, CardId, StockSymbol, AlertTypeId, Message, Price, PriceChange) VALUES
+(1, '12345', 'GOOGL', 1, 'גוגל עלתה 5.2% היום!', 150.25, 5.20),
+(2, '67890', 'AAPL', 3, 'אפל הגיעה לשיא שנתי חדש!', 175.50, NULL);
+    </code></pre>
+  </div>
+</section>
+
+<section>
+  <h2>6. תרשים ארכיטקטורה</h2>
+  <div class="diagram">
+    <!-- Inline SVG diagram simplified -->
+    <svg width="900" height="500" viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+          <path d="M0,0 L10,5 L0,10 Z" fill="#0f4c81"/>
+        </marker>
+      </defs>
+      <!-- Components boxes -->
+      <rect x="20" y="20" width="160" height="70" rx="10" fill="#eef7ff" stroke="#0f4c81" stroke-width="2"/>
+      <text x="100" y="45" text-anchor="middle" font-size="14" font-weight="bold">RTS / ATLAS / K300</text>
+      <text x="100" y="60" text-anchor="middle" font-size="12">מחזיקים, עוקבים, ריאל טיים</text>
+
+      <rect x="220" y="20" width="160" height="70" rx="10" fill="#f0fff4" stroke="#2f7f3e" stroke-width="2"/>
+      <text x="300" y="45" text-anchor="middle" font-size="14" font-weight="bold">StocksFetcher</text>
+      <text x="300" y="60" text-anchor="middle" font-size="12">עדכון קהלים ל-Redis + RabbitMQ</text>
+
+      <rect x="220" y="120" width="160" height="70" rx="10" fill="#fff7ee" stroke="#c86300" stroke-width="2"/>
+      <text x="300" y="145" text-anchor="middle" font-size="14" font-weight="bold">PriceStreamer</text>
+      <text x="300" y="160" text-anchor="middle" font-size="12">מחירי ריאל טיים</text>
+
+      <rect x="420" y="70" width="180" height="80" rx="10" fill="#f7f7ff" stroke="#4b4b9c" stroke-width="2"/>
+      <text x="510" y="95" text-anchor="middle" font-size="14" font-weight="bold">DataCalculator</text>
+      <text x="510" y="110" text-anchor="middle" font-size="12">השוואה לסטטי, חישובים</text>
+
+      <rect x="640" y="40" width="180" height="80" rx="10" fill="#fff0f6" stroke="#9c2f5e" stroke-width="2"/>
+      <text x="730" y="65" text-anchor="middle" font-size="14" font-weight="bold">TriggerChecker</text>
+      <text x="730" y="80" text-anchor="middle" font-size="12">לוגיקה עסקית + פילטר</text>
+
+      <rect x="640" y="140" width="180" height="70" rx="10" fill="#f0fff9" stroke="#007f4f" stroke-width="2"/>
+      <text x="730" y="165" text-anchor="middle" font-size="14" font-weight="bold">PushService</text>
+      <text x="730" y="180" text-anchor="middle" font-size="12">שליחת פושים + תיעוד</text>
+
+      <rect x="20" y="220" width="180" height="80" rx="10" fill="#fffceb" stroke="#a67f00" stroke-width="2"/>
+      <text x="110" y="245" text-anchor="middle" font-size="14" font-weight="bold">SQL Server</text>
+      <text x="110" y="260" text-anchor="middle" font-size="12">Configurations, Preferences, History, Devices</text>
+
+      <rect x="220" y="220" width="180" height="80" rx="10" fill="#e8f7ff" stroke="#006d9c" stroke-width="2"/>
+      <text x="310" y="245" text-anchor="middle" font-size="14" font-weight="bold">Redis Cluster</text>
+      <text x="310" y="260" text-anchor="middle" font-size="12">Static, Live, Dedup, Audience</text>
+
+      <rect x="20" y="340" width="180" height="80" rx="10" fill="#f9f0ff" stroke="#6f2f9c" stroke-width="2"/>
+      <text x="110" y="365" text-anchor="middle" font-size="14" font-weight="bold">UI Admin</text>
+      <text x="110" y="380" text-anchor="middle" font-size="12">ניהול ושליטה</text>
+
+      <!-- arrows -->
+      <path d="M100,90 L100,120" stroke="#0f4c81" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+      <path d="M300,90 L300,120" stroke="#2f7f3e" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+      <path d="M300,150 L420,150" stroke="#c86300" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+      <path d="M510,150 L640,150" stroke="#4b4b9c" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+      <path d="M730,120 L730,140" stroke="#9c2f5e" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+      <path d="M730,210 L730,220" stroke="#007f4f" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+      <path d="M500,240 L420,240" stroke="#4b4b9c" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+      <path d="M500,240 L640,240" stroke="#006d9c" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+      <path d="M200,300 L200,340" stroke="#a67f00" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+      <path d="M400,300 L310,300" stroke="#006d9c" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+      <path d="M110,300 L110,340" stroke="#a67f00" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+      <path d="M110,420 L110,460" stroke="#6f2f9c" stroke-width="3" marker-end="url(#arrow)" fill="none"/>
+    </svg>
+    <p class="small">התרשים מראה את זרימת הנתונים: מקור ה-RTS מספק מחזיקים/עוקבים ונתוני ריאל טיים ל-StocksFetcher ו-PriceStreamer, ממשיך דרך DataCalculator, TriggerChecker ועד PushService, כאשר SQL ו-Redis משמשים כמאגרי קונפיגורציה, סטייט ותיעוד. UI Admin חוצה ומשפיע על ההגדרות ב-SQL.</p>
+  </div>
+</section>
+
+<section>
+  <h2>7. נקודות לשיפור / המלצות סופיות</h2>
+  <ul>
+    <li>להוסיף פרוטוקול idempotency במעבר בין רכיבים (למשל UUID לכל אירוע התראה) כדי למנוע כפילויות בנסיבות של retry.</li>
+    <li>להגביל את גודל תורים ב-RabbitMQ וליישם backoff ל־TriggerChecker במקרה של עומס.</li>
+    <li>להוסיף auditing layer שתומך בהיסטוריה של שינויים ב-AlertConfigurations ו-UserAlertPreferences.</li>
+    <li>להפריד בין התראות בסקלת זמן (יומי/שבועי) עם TTLים חכמים ב־Redis.</li>
+    <li>להוסיף תצוגת Metrics ב־UI (למשל: כמה התראות נשלחו, זמן עיבוד ממוצע, אחוזDropped).</li>
+  </ul>
+</section>
+
+</body>
+</html>
