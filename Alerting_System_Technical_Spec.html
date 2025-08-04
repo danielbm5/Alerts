@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>מפרט טכני מפורט - מערכת התראות מסחר</title>
+    <style>
+        :root {
+            --primary-color: #1e40af;
+            --secondary-color: #3b82f6;
+            --success-color: #10b981;
+            --warning-color: #f97316;
+            --danger-color: #ef4444;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --border-color: #e5e7eb;
+            --code-bg: #f1f5f9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 3rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 1rem 1rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .header .subtitle {
+            text-align: center;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: var(--bg-primary);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .nav-tab:hover:not(.active) {
+            background: var(--bg-secondary);
+        }
+
+        .content-section {
+            background: var(--bg-primary);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .content-section h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .content-section h3 {
+            color: var(--text-primary);
+            margin: 1.5rem 0 1rem 0;
+            font-size: 1.25rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card h4 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-primary { background: #dbeafe; color: #1e40af; }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+
+        .code-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin: 1rem 0;
+        }
+
+        .code-title {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem 0.5rem 0 0;
+            font-weight: 600;
+            margin-bottom: -1rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            border-right: 4px solid;
+        }
+
+        .alert-info {
+            background: #eff6ff;
+            border-color: var(--primary-color);
+            color: #1e40af;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            border-color: var(--success-color);
+            color: #065f46;
+        }
+
+        .alert-warning {
+            background: #fffbeb;
+            border-color: var(--warning-color);
+            color: #92400e;
+        }
+
+        .alert-danger {
+            background: #fef2f2;
+            border-color: var(--danger-color);
+            color: #991b1b;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-primary);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: right;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--primary-color);
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .metric-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>מפרט טכני מפורט - מערכת התראות מסחר</h1>
+            <p class="subtitle">ארכיטקטורה, יישום והנחיות פיתוח | שרת מידעים</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="showSection('overview')">סקירה כללית</button>
+            <button class="nav-tab" onclick="showSection('architecture')">ארכיטקטורה</button>
+            <button class="nav-tab" onclick="showSection('components')">רכיבי המערכת</button>
+            <button class="nav-tab" onclick="showSection('database')">בסיס נתונים</button>
+            <button class="nav-tab" onclick="showSection('implementation')">יישום</button>
+        </div>
+
+        <!-- סקירה כללית -->
+        <div id="overview" class="content-section">
+            <h2>סקירה כללית</h2>
+            
+            <div class="alert alert-info">
+                <strong>מטרת המערכת:</strong> מערכת התראות חכמה לשליחת התראות מותאמות אישית ללקוחות אפליקציית מסחר על בסיס החזקות, עוקבים ואירועי שוק.
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h4>📊 נתונים סטטיים</h4>
+                    <p>מחירי סגירה היסטוריים, שיא/שפל שנתי, גבוה/נמוך יומי</p>
+                    <span class="badge badge-primary">שרת מידעים</span>
+                </div>
+                <div class="card">
+                    <h4>⚡ נתונים בזמן אמת</h4>
+                    <p>מחזיקים, עוקבים, מחירי ריאל טיים</p>
+                    <span class="badge badge-success">RTS/ATLAS/K300</span>
+                </div>
+                <div class="card">
+                    <h4>🎯 התראות מותאמות</h4>
+                    <p>עליות/ירידות אחוזיות, שיא/שפל, חדשות כלליות</p>
+                    <span class="badge badge-warning">פוש מותאם אישית</span>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value">6</div>
+                    <div class="metric-label">רכיבי מערכת</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">4</div>
+                    <div class="metric-label">טבלאות SQL</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">15+</div>
+                    <div class="metric-label">מפתחות Redis</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">5</div>
+                    <div class="metric-label">סוגי התראות</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ארכיטקטורה -->
+        <div id="architecture" class="content-section" style="display: none;">
+            <h2>ארכיטקטורת המערכת</h2>
+            
+            <div class="alert alert-success">
+                <strong>Event-Driven Microservices:</strong> ארכיטקטורה מבוססת אירועים עם רכיבים עצמאיים המתקשרים דרך RabbitMQ
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h4>🔄 Event-Driven Architecture</h4>
+                    <p>שימוש ב-RabbitMQ להזנת אירועים בין רכיבים עם routing keys מוגדרים</p>
+                    <div class="code-block">
+                        <pre><code>Exchange: stocks.update
+Routing Keys: holders.{SYMBOL}, watchers.{SYMBOL}
+
+Exchange: prices.stream  
+Routing Keys: price.{SYMBOL}
+
+Exchange: alerts.dispatch
+Routing Keys: alert.{SYMBOL}.{AUDIENCE}</code></pre>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4>💾 Multi-Database Strategy</h4>
+                    <p>Redis Cluster למצב זמני, SQL Server לקונפיגורציה</p>
+                    <ul>
+                        <li>Redis: Cache, State, Deduplication</li>
+                        <li>SQL: Configurations, Preferences, History</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>⚡ Microservices Pattern</h4>
+                    <p>רכיבים עצמאיים עם אחריות מוגדרת ויכולת scaling נפרדת</p>
+                </div>
+            </div>
+
+            <h3>טכנולוגיות</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>טכנולוגיה</th>
+                            <th>תפקיד</th>
+                            <th>גרסה</th>
+                            <th>הערות</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>.NET Core</strong></td>
+                            <td>פלטפורמת פיתוח</td>
+                            <td>3.1+</td>
+                            <td>Microservices, Docker support</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Kubernetes</strong></td>
+                            <td>Container Orchestration</td>
+                            <td>1.20+</td>
+                            <td>Auto-scaling, Health checks</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Redis Cluster</strong></td>
+                            <td>Cache & State</td>
+                            <td>6.0+</td>
+                            <td>High availability, TTL support</td>
+                        </tr>
+                        <tr>
+                            <td><strong>RabbitMQ</strong></td>
+                            <td>Message Broker</td>
+                            <td>3.8+</td>
+                            <td>Topic exchanges, Dead letter queues</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SQL Server</strong></td>
+                            <td>Relational Database</td>
+                            <td>2019+</td>
+                            <td>Configurations, History, ACID</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- רכיבי המערכת -->
+        <div id="components" class="content-section" style="display: none;">
+            <h2>רכיבי המערכת - מפרט טכני</h2>
+
+            <div class="grid">
+                <div class="card">
+                    <h4>StocksFetcher Service</h4>
+                    <p><strong>תפקיד:</strong> מקבל מ-RTS/ATLAS/K300 את רשימות המחזיקים והעוקבים</p>
+                    <div class="code-block">
+                        <pre><code>public class StocksFetcherService
+{
+    public async Task UpdateHoldersAsync(string symbol, List<string> cardIds)
+    {
+        var key = $"stock:holders:{symbol}";
+        await _redisService.SetAsync(key, cardIds, TimeSpan.FromMinutes(30));
+        
+        await _rabbitMQService.PublishAsync("stocks.update", 
+            $"holders.{symbol}", new { Symbol = symbol, CardIds = cardIds });
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>PriceStreamer Service</h4>
+                    <p><strong>תפקיד:</strong> מוחזק חיבור WebSocket למחירי ריאל-טיים</p>
+                    <div class="code-block">
+                        <pre><code>public class PriceStreamerService
+{
+    public async Task ProcessPriceUpdateAsync(PriceUpdate update)
+    {
+        var key = $"stock:price:{update.Symbol}";
+        await _redisService.SetAsync(key, update, TimeSpan.FromMinutes(5));
+        
+        await _rabbitMQService.PublishAsync("prices.stream", 
+            $"price.{update.Symbol}", update);
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>DataCalculator Service</h4>
+                    <p><strong>תפקיד:</strong> מבצע חישובים עסקיים ומשווה נתונים סטטיים</p>
+                    <div class="code-block">
+                        <pre><code>public class DataCalculatorService
+{
+    public async Task<CalculationResult> CalculatePriceMetricsAsync(string symbol, decimal currentPrice)
+    {
+        var staticData = await _redisService.GetAsync<StockStaticData>($"stock:static:{symbol}");
+        
+        return new CalculationResult
+        {
+            IsYearHigh = currentPrice >= staticData.YearHigh,
+            IsYearLow = currentPrice <= staticData.YearLow,
+            DailyChangePercent = CalculateChangePercent(staticData.DailyOpen, currentPrice)
+        };
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>TriggerChecker Service</h4>
+                    <p><strong>תפקיד:</strong> הרכיב הקריטי שמריץ את הלוגיקה העסקית</p>
+                    <div class="code-block">
+                        <pre><code>public class TriggerCheckerService
+{
+    public async Task CheckAndTriggerAlertsAsync(string symbol)
+    {
+        var activeConfigs = await _sqlService.GetActiveAlertConfigurationsAsync(symbol);
+        var audience = await _redisService.GetAsync<List<string>>($"audience:Holders:{symbol}");
+        
+        foreach (var config in activeConfigs)
+        {
+            foreach (var cardId in audience)
+            {
+                if (await ShouldSendAlertAsync(cardId, config))
+                {
+                    await _rabbitMQService.PublishAsync("alerts.dispatch", 
+                        $"alert.{symbol}.{config.TargetAudience}", 
+                        new AlertRequest { CardId = cardId, Config = config });
+                }
+            }
+        }
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>PushService</h4>
+                    <p><strong>תפקיד:</strong> שולח התראות פוש ומתעד את השליחה</p>
+                    <div class="code-block">
+                        <pre><code>public class PushService
+{
+    public async Task SendAlertAsync(AlertRequest request)
+    {
+        var pushToken = await _sqlService.GetPushTokenAsync(request.CardId);
+        
+        await _pushProvider.SendAsync(pushToken, request.Message);
+        await _sqlService.LogAlertHistoryAsync(request);
+        
+        var dedupKey = $"alert:sent:daily:{request.Symbol}:{request.AlertType}:{request.CardId}";
+        await _redisService.SetAsync(dedupKey, DateTime.UtcNow.Date, TimeSpan.FromHours(24));
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- בסיס נתונים -->
+        <div id="database" class="content-section" style="display: none;">
+            <h2>מבנה בסיס הנתונים</h2>
+
+            <div class="alert alert-success">
+                <strong>עיצוב מנורמל:</strong> 4 טבלאות בלבד עם יחסים ברורים ותמיכה בהעדפות משתמשים גמישות
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>טבלה</th>
+                            <th>תפקיד</th>
+                            <th>רשומות משוערות</th>
+                            <th>גודל משוער</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>AlertTypes</strong></td>
+                            <td>סוגי התראות מוגדרים מראש</td>
+                            <td>10-20</td>
+                            <td>5KB</td>
+                        </tr>
+                        <tr>
+                            <td><strong>AlertConfigurations</strong></td>
+                            <td>הגדרות התראות פעילות</td>
+                            <td>100-500</td>
+                            <td>50KB</td>
+                        </tr>
+                        <tr>
+                            <td><strong>UserAlertPreferences</strong></td>
+                            <td>העדפות משתמשים</td>
+                            <td>10K-100K</td>
+                            <td>5MB</td>
+                        </tr>
+                        <tr>
+                            <td><strong>AlertHistory</strong></td>
+                            <td>היסטוריית התראות</td>
+                            <td>1M-10M</td>
+                            <td>500MB-5GB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-block">
+                <div class="code-title">SQL Schema - Complete Definition</div>
+                <pre><code>-- 1. סוגי התראות
+CREATE TABLE AlertTypes (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    Name NVARCHAR(100) NOT NULL UNIQUE,
+    Description NVARCHAR(500),
+    IsActive BIT DEFAULT 1,
+    IsSkeletonAlert BIT DEFAULT 0,
+    CreatedDate DATETIME2 DEFAULT GETDATE()
+);
+
+-- 2. הגדרות התראות
+CREATE TABLE AlertConfigurations (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    AlertTypeId INT NOT NULL,
+    StockSymbol NVARCHAR(20) NOT NULL,
+    TargetAudience NVARCHAR(50) NOT NULL,
+    Percentage DECIMAL(5,2) NULL,
+    IsActive BIT DEFAULT 1,
+    CreatedDate DATETIME2 DEFAULT GETDATE(),
+    CreatedBy NVARCHAR(100),
+    
+    FOREIGN KEY (AlertTypeId) REFERENCES AlertTypes(Id),
+    INDEX IX_AlertConfigurations_Symbol (StockSymbol),
+    INDEX IX_AlertConfigurations_Active (IsActive)
+);
+
+-- 3. העדפות משתמשים
+CREATE TABLE UserAlertPreferences (
+    Id BIGINT PRIMARY KEY IDENTITY(1,1),
+    CardId NVARCHAR(20) NOT NULL,
+    AlertTypeId INT NOT NULL,
+    StockSymbol NVARCHAR(20) NULL,
+    IsEnabled BIT DEFAULT 1,
+    CreatedDate DATETIME2 DEFAULT GETDATE(),
+    
+    FOREIGN KEY (AlertTypeId) REFERENCES AlertTypes(Id),
+    UNIQUE (CardId, AlertTypeId, StockSymbol),
+    INDEX IX_UserAlertPreferences_CardId (CardId)
+);
+
+-- 4. היסטוריית התראות
+CREATE TABLE AlertHistory (
+    Id BIGINT PRIMARY KEY IDENTITY(1,1),
+    AlertConfigurationId INT NOT NULL,
+    CardId NVARCHAR(20) NOT NULL,
+    StockSymbol NVARCHAR(20) NOT NULL,
+    AlertTypeId INT NOT NULL,
+    Message NVARCHAR(1000) NOT NULL,
+    SentDate DATETIME2 DEFAULT GETDATE(),
+    Price DECIMAL(10,4) NULL,
+    PriceChange DECIMAL(5,2) NULL,
+    
+    FOREIGN KEY (AlertConfigurationId) REFERENCES AlertConfigurations(Id),
+    FOREIGN KEY (AlertTypeId) REFERENCES AlertTypes(Id),
+    INDEX IX_AlertHistory_SentDate (SentDate),
+    INDEX IX_AlertHistory_CardId (CardId)
+);</code></pre>
+            </div>
+
+            <h3>מפתחות Redis - מבנה מפורט</h3>
+            <div class="code-block">
+                <div class="code-title">Redis Key Patterns & TTL Strategy</div>
+                <pre><code># נתונים סטטיים (מתעדכן יומית)
+stock:static:{SYMBOL} -> {
+    "symbol": "GOOGL",
+    "lastClose": 150.50,
+    "yearHigh": 180.00,
+    "yearLow": 120.00,
+    "dailyOpen": 151.00,
+    "dailyHigh": 155.00,
+    "dailyLow": 149.00,
+    "lastUpdated": "2025-01-15T08:00:00Z"
+} // TTL: 24 hours
+
+# מחזיקים ועוקבים (מתעדכן כל 30 דקות)
+stock:holders:{SYMBOL} -> ["123456", "234567", "345678"] // TTL: 30 minutes
+stock:watchers:{SYMBOL} -> ["123456", "789012", "456789"] // TTL: 30 minutes
+
+# קהלים מוכנים מראש
+audience:Holders:{SYMBOL} -> ["123456", "234567"] // TTL: 30 minutes
+audience:Watchers:{SYMBOL} -> ["123456", "789012"] // TTL: 30 minutes
+
+# מחירי זמן אמת (מתעדכן כל דקה)
+stock:price:{SYMBOL} -> {
+    "symbol": "GOOGL",
+    "price": 152.75,
+    "change": 2.25,
+    "changePercent": 1.49,
+    "timestamp": "2025-01-15T14:30:00Z"
+} // TTL: 5 minutes
+
+# מניעת כפילויות
+alert:sent:daily:{SYMBOL}:{ALERT_TYPE}:{CARD_ID} -> "2025-01-15" // TTL: 24 hours
+alert:sent:weekly:{SYMBOL}:{ALERT_TYPE}:{CARD_ID} -> "2025-W03" // TTL: 7 days</code></pre>
+            </div>
+        </div>
+
+        <!-- יישום -->
+        <div id="implementation" class="content-section" style="display: none;">
+            <h2>הנחיות יישום ופיתוח</h2>
+
+            <div class="alert alert-warning">
+                <strong>נקודות קריטיות ליישום:</strong>
+                <ul>
+                    <li>הגדרת Circuit Breaker לכל שירות חיצוני</li>
+                    <li>יישום Retry Logic עם exponential backoff</li>
+                    <li>הגדרת Dead Letter Queue ב-RabbitMQ</li>
+                    <li>ניטור ביצועים ו-health checks</li>
+                </ul>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h4>שלב 1: הגדרת תשתית</h4>
+                    <ul>
+                        <li>הקמת Kubernetes cluster עם Redis Cluster</li>
+                        <li>הגדרת RabbitMQ עם exchanges ו-queues</li>
+                        <li>יצירת SQL Server database עם הטבלאות</li>
+                        <li>הגדרת monitoring ו-logging</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h4>שלב 2: פיתוח רכיבי Core</h4>
+                    <ul>
+                        <li>StocksFetcher - חיבור ל-RTS/ATLAS/K300</li>
+                        <li>PriceStreamer - WebSocket connection</li>
+                        <li>DataCalculator - business logic</li>
+                        <li>TriggerChecker - alert logic</li>
+                        <li>PushService - notification sending</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h4>שלב 3: UI Admin Panel</h4>
+                    <ul>
+                        <li>ממשק ניהול התראות</li>
+                        <li>ניהול קהלים ושלדים</li>
+                        <li>דוחות וסטטיסטיקות</li>
+                        <li>ניהול העדפות משתמשים</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h4>שלב 4: Testing & Deployment</h4>
+                    <ul>
+                        <li>Unit tests לכל רכיב</li>
+                        <li>Integration tests</li>
+                        <li>Load testing</li>
+                        <li>Production deployment</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block">
+                <div class="code-title">Docker Compose - Development Environment</div>
+                <pre><code>version: '3.8'
+
+services:
+  redis-cluster:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    environment:
+      SA_PASSWORD: "YourStrong@Passw0rd"
+      ACCEPT_EULA: Y
+    ports:
+      - "1433:1433"
+
+  alerting-api:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis-cluster
+      - rabbitmq
+      - sqlserver</code></pre>
+            </div>
+
+            <h3>Monitoring & Observability</h3>
+            <div class="code-block">
+                <div class="code-title">Prometheus Metrics</div>
+                <pre><code># Alert Processing Metrics
+alerts_processed_total{component="triggerchecker"} 1234
+alerts_sent_total{component="pushservice"} 987
+alert_processing_duration_seconds{component="triggerchecker"} 0.15
+
+# Error Rates
+alert_processing_errors_total{component="triggerchecker"} 5
+push_delivery_failures_total{component="pushservice"} 12
+
+# Queue Metrics
+rabbitmq_queue_messages{queue="alerts.dispatch"} 45
+rabbitmq_queue_consumers{queue="alerts.dispatch"} 3</code></pre>
+            </div>
+        </div>
+
+        <script>
+            function showSection(sectionId) {
+                // הסתרת כל הסקציות
+                const sections = document.querySelectorAll('.content-section');
+                sections.forEach(section => {
+                    section.style.display = 'none';
+                });
+                
+                // הצגת הסקציה הנבחרת
+                document.getElementById(sectionId).style.display = 'block';
+                
+                // עדכון הטאבים
+                const tabs = document.querySelectorAll('.nav-tab');
+                tabs.forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                event.target.classList.add('active');
+            }
+        </script>
+    </div>
+</body>
+</html>
